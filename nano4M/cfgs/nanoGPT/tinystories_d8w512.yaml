@@ -5,7 +5,7 @@ output_dir: ./outputs/auto # Set to auto to use the run_name
 
 # Global variables used throughout the config
 global_vars:
-  batch_size: 128 # per GPU
+  batch_size: 64 # per GPU (128 de base)
   max_seq_len: 256
 
 # Training
@@ -25,8 +25,8 @@ save_ckpt_freq: 200 # in millions of tokens
 
 # Logging
 log_wandb: True
-wandb_project: COM304_nanoGPT # wandb project name
-wandb_entity: <YOUR_WANDB_ENTITY_NAME> # Set to your wandb username (or team name)
+wandb_project: nanoGPT # wandb project name
+wandb_entity: tprotais-epfl # Set to your wandb username
 wandb_run_name: auto # Set to auto to use the run_name
 
 # Model config
@@ -53,7 +53,7 @@ train_loader_config:
   increase_seq_len_by_one: True # Loader returns 256+1 tokens to shift inputs/targets by one
   infinite: True
   distributed: True
-  num_workers: 10
+  num_workers: 2
   pin_memory: True
   shuffle: True
 
@@ -70,6 +70,6 @@ eval_loader_config:
   increase_seq_len_by_one: True # Loader returns 256+1 tokens to shift inputs/targets by one
   infinite: False
   distributed: True
-  num_workers: 10
+  num_workers: 2
   pin_memory: True
   shuffle: False

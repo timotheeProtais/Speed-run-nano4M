@@ -267,10 +267,9 @@ def train_loop(
     for step, data_dict in enumerate(metric_logger.log_every(data_loader_train, print_freq, iter_len=args.total_iters, header=header, start_iter=args.start_iteration)):
         it = args.start_iteration + step  # global training iteration
         total_tokens_seen = it * args.total_batch_size * args.num_tokens_per_sample
-
         # Move tensors to GPU
         data_dict = to_device(data_dict, device)
-
+        
         # Forward pass and loss computation
         with torch.amp.autocast(device.type, dtype=dtype, enabled=dtype != torch.float32):
             loss, metrics = model(data_dict)
@@ -396,4 +395,3 @@ if __name__ == '__main__':
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     main(args)
-

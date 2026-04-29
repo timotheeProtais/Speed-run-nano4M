@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+from typing import Dict, Any, Tuple
 
 from nanofm.modeling.transformer_layers import TransformerTrunk, LayerNorm
 from nanofm.utils.sampling import sample_tokens
@@ -49,7 +50,7 @@ class GPT(nn.Module):
             use_bias: bool = False,
             vocab_size: int = 10000,
             max_seq_len: int = 256,
-            padding_idx: int = -100,
+            padding_idx: int = 0,
             init_std: float = 0.02,
         ):
         super().__init__()
@@ -58,13 +59,13 @@ class GPT(nn.Module):
         self.max_seq_len = max_seq_len
         self.init_std = init_std
 
-        self.input_embedding = ??? # TODO: Define the input embedding layer
-        self.positional_embedding = ??? # TODO: Define the learnable positional embedding
+        self.input_embedding = nn.Embedding(vocab_size, dim, self.padding_idx)
+        self.positional_embedding = nn.Parameter(torch.rand(self.max_seq_len, dim))
         
-        self.trunk = ??? # TODO: Define the transformer trunk
+        self.trunk = TransformerTrunk(dim, depth, head_dim, mlp_ratio, use_bias)
         
-        self.out_norm = ??? # TODO: Define the output layer normalization. Use the LayerNorm class defined in modeling/transformer_layers.py
-        self.to_logits = ??? # TODO: Define the output projection layer
+        self.out_norm = LayerNorm(dim)
+        self.to_logits = nn.Linear(dim, vocab_size, bias=False)
 
         self.initialize_weights() # Weight initialization
 
@@ -114,27 +115,30 @@ class GPT(nn.Module):
         B, L = x.size() # batch size and sequence length
 
         # TODO: Embed the input tokens using the input embedding layer. Shape: [B, L, D]
-        ???
+        x_embed = self.input_embedding(x)
         
         # TODO: Add the positional embeddings to the tokens
         # Hint: Make sure this works for sequences of different lengths
-        ???
+        pos_embed = self.positional_embedding[:L, :]
+        pos_embed = pos_embed.unsqueeze(0)
+        x = x_embed + pos_embed
 
         # TODO: Define the causal mask for the transformer trunk. 
         # False = masked-out, True = not masked. Shape: [1, L, L]
         # Hint: What shape should the mask have such that each token can attend to itself and
         # all previous tokens, but not to any future tokens?
-        ???
-            
+        causal_mask = torch.tril(torch.ones(L, L, dtype=torch.bool, device=x.device))
+        causal_mask = causal_mask.unsqueeze(0)
         # TODO: Forward pass through Transformer trunk
         # Hint: Make sure to pass the causal mask to the transformer trunk too
-        ???
+        x = self.trunk(x, mask = causal_mask)
         
         # TODO: Pass to the output normalization and output projection layer to compute the logits
-        ???
+        x = self.out_norm(x)
+        logits = self.to_logits(x)
 
         # TODO: Return the logits
-        return ???
+        return logits
 
     def compute_ce_loss(self, logits: torch.Tensor, target_seq: torch.LongTensor, padding_idx: int = -100) -> torch.Tensor:
         """
@@ -149,7 +153,12 @@ class GPT(nn.Module):
         """
         # TODO: Compute the cross-entropy loss
         # Hint: Remember to ignore the padding token index in the loss calculation
-        ???
+        B, L, V = logits.shape
+
+        logits_flat = logits.view(B * L, V)
+        targets_flat = target_seq.reshape(B * L)
+    
+        return F.cross_entropy(logits_flat, targets_flat, ignore_index=padding_idx)
 
     def forward(self, data_dict: Dict[str, Any]) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """
@@ -201,18 +210,22 @@ class GPT(nn.Module):
         for _ in range(self.max_seq_len - len(context)):
 
             # Run a forward pass through the model to get the logits
-            ???
+            logits = self.forward_model(current_tokens)
 
             # Keep only the last token's logits and sample the next token
             # Hint: Use the sample_tokens function from utils/sampling.py
             # Make sure to pass the temperature, top_k and top_p arguments
-            ???
-
+            last_token_logits = logits[:, -1, :]
+            next_token = sample_tokens(last_token_logits, temp, top_k, top_p)[0]
             # Concatenate the new token to the current_tokens sequence
-            ???
+            next_token = next_token.unsqueeze(1)
+            current_tokens = torch.cat([current_tokens, next_token], dim=1)
+
 
             # Break if the end-of-sequence token is generated
-            ???
+            if eos_idx is not None:
+                if next_token.item() == eos_idx:
+                    break
 
         if was_training:
             self.train()
