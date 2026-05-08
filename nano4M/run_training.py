@@ -228,6 +228,7 @@ def main(args):
         log_writer=log_writer,
         device=device,
         dtype=dtype,
+        n_parameters=n_parameters,
     )
     if args.output_dir:
         utils.save_model(
@@ -256,6 +257,7 @@ def train_loop(
         log_writer: Optional[utils.WandbLogger] = None,
         device: torch.device = torch.device('cuda'),
         dtype: torch.dtype = torch.float16,
+        n_parameters: int = 0,
     ):    
     model.train()
 
@@ -267,6 +269,7 @@ def train_loop(
     for step, data_dict in enumerate(metric_logger.log_every(data_loader_train, print_freq, iter_len=args.total_iters, header=header, start_iter=args.start_iteration)):
         it = args.start_iteration + step  # global training iteration
         total_tokens_seen = it * args.total_batch_size * args.num_tokens_per_sample
+        _step_start = time.time()
         # Move tensors to GPU
         data_dict = to_device(data_dict, device)
         
@@ -296,6 +299,12 @@ def train_loop(
         )
         optimizer.zero_grad()
         torch.cuda.synchronize()
+
+        tokens_per_sec = args.total_batch_size * args.num_tokens_per_sample / (time.time() - _step_start)
+        
+        mfu = tokens_per_sec * 2 * n_parameters / (2 * 90e12) 
+        metric_logger.update(tokens_per_sec=tokens_per_sec)
+        metric_logger.update(mfu=mfu)
 
         # Logging
         metric_logger.update(loss=loss_value)
