@@ -16,41 +16,50 @@
 # https://github.com/rwightman/pytorch-image-models/tree/master/timm
 # https://github.com/apple/ml-4m/
 # --------------------------------------------------------
-
 import torch
 
+
 class NativeScalerWithGradNormCount:
+    """Wrapper around PyTorch's GradScaler that supports multiple optimizers.
+
+    The key modification for Muon is the extra_optimizers argument in __call__: since Muon and
+    AdamW manage disjoint parameter sets, both must be unscaled and stepped independently by the
+    same scaler. Without this, Muon's parameters would receive scaled gradients, corrupting the
+    Newton-Schulz orthogonalization. The scaler itself is shared and updated only once per step.
+    """
     state_dict_key = "amp_scaler"
 
     def __init__(self, enabled=True):
         self._scaler = torch.amp.GradScaler('cuda', enabled=enabled)
 
     def __call__(self, loss, optimizer, clip_grad=None, skip_grad=None, parameters=None, create_graph=False, update_grad=True, compute_grad_norm=True, extra_optimizers=None):
+        """Backward pass with optional gradient clipping, unscaling, and stepping of all optimizers.
+
+        extra_optimizers (e.g. [optimizer_muon]) are unscaled and stepped alongside the main
+        optimizer. All optimizers in the list must have their gradients unscaled before any step
+        is taken, to ensure consistent gradient norms across both parameter groups.
+        """
         self._scaler.scale(loss).backward(create_graph=create_graph)
         if update_grad:
-            all_optimizers = [optimizer] + (extra_optimizers or []) # Muon
+            all_optimizers = [optimizer] + (extra_optimizers or [])
             if clip_grad is not None:
                 assert parameters is not None
-                for opt in all_optimizers:  # Muon
+                for opt in all_optimizers:
                     self._scaler.unscale_(opt)
-                # self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place (Normal )
                 norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
             elif skip_grad is not None:
-                for opt in all_optimizers:      # Muon
+                for opt in all_optimizers:
                     self._scaler.unscale_(opt)
-                # self._scaler.unscale_(optimizer)  #Normal
                 norm = get_grad_norm_(parameters)
                 if norm >= skip_grad:
                     self._scaler.update()
                     return norm
             else:
-                for opt in all_optimizers:  # Muon
+                for opt in all_optimizers:
                     self._scaler.unscale_(opt)
-                # self._scaler.unscale_(optimizer)
                 norm = get_grad_norm_(parameters) if compute_grad_norm else None
-            for opt in all_optimizers:      #Muon
+            for opt in all_optimizers:
                 self._scaler.step(opt)
-            # self._scaler.step(optimizer)
             self._scaler.update()
         else:
             norm = None
@@ -64,6 +73,7 @@ class NativeScalerWithGradNormCount:
 
 
 def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
+    """Computes the total gradient norm across all parameters with a gradient."""
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
     parameters = [p for p in parameters if p.grad is not None]

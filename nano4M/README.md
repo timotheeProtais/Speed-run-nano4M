@@ -25,14 +25,13 @@ nano4M/
 │   ├── models/                    # Model architectures
 │   │   └── fourm.py               # FourM encoder-decoder transformer
 │   └── utils/                     # Optimizers, helpers
-│       └── muon.py                # Muon optimizer implementation
-│
-├── notebooks/                     # Jupyter notebooks for experiments
-│   ├── COM304_FM_part3_nano4M.ipynb
+│       └── muon.py                # Muon optimizer implementation checkpoint.py
+│       └── checkpoint.py          # Save checkpoints (Muon compatible)
+│       └── native_scaler.py       # Should make Muon compatible
 │
 ├── outputs/                       # Training outputs
 │   ├── generated_images/          # Images generated after training
-│   └── nano4M/                    # Model checkpoints and logs
+│   └── nano4M/                    # Model checkpoints
 │
 ├── logs/                          # SLURM job output logs
 │
@@ -77,7 +76,7 @@ Training is designed to run on 2× L40-48GB GPUs (distributed, global batch size
 
 > **Note on FlexAttention**: David
 
-> **Note on Muon**: The Muon optimizer is implemented locally in `nanofm/utils/muon.py` — no extra pip install needed.
+> **Note on Muon**: The Muon optimizer is implemented locally in `nanofm/utils/muon.py` : no extra pip install needed.
 
 ---
 

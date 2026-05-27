@@ -38,14 +38,23 @@ CKPT_ORIGINAL = './outputs/nano4M/multiclevr_d6-6w512/checkpoint-final.safetenso
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # TODO: Path of the checkpoint of the optimized model
-# CKPT_MODIFIED = None
 CKPT_MODIFIED = './outputs/nano4M/multiclevr_d6-6w512/checkpoint-7629.safetensors'
 
 
 def token_ids_to_image(token_ids: torch.Tensor, image_tokenizer) -> torch.Tensor:
-    
-    """Token's Tensor to image"""
-    
+    """Decodes a flat sequence of discrete token IDs into a pixel image using the Cosmos tokenizer.
+
+    The token sequence is assumed to represent a square spatial grid, so its length must be a
+    perfect square. The tokens are reshaped into (1, H, W) before being passed to the decoder,
+    and the resulting image is rescaled from [-1, 1] to [0, 1].
+
+    Args:
+        token_ids: 1D integer tensor of length H*W containing the discrete visual tokens.
+        image_tokenizer: A Cosmos ImageTokenizer instance with a loaded decoder.
+
+    Returns:
+        A float tensor of shape (C, H, W) with pixel values in [0, 1].
+    """
     side = int(math.sqrt(token_ids.numel()))
     token_ids = token_ids.reshape(1, side, side).to(device)
     with torch.no_grad():
@@ -54,9 +63,22 @@ def token_ids_to_image(token_ids: torch.Tensor, image_tokenizer) -> torch.Tensor
 
 
 def compute_depth_l1(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, image_tokenizer) -> float:
-    
-    """Evaluate depth"""
+    """Computes the standardized L1 error between a predicted and a ground-truth depth map.
 
+    Both token sequences are decoded into images and converted to grayscale by averaging over
+    channels. The ground-truth map is then standardized (zero mean, unit std), and the same
+    normalization is applied to the prediction before computing the mean absolute difference.
+    Standardization makes the metric invariant to the global scale and shift of the depth values,
+    focusing on structural accuracy rather than absolute range.
+
+    Args:
+        pred_tokens: 1D integer tensor of predicted depth tokens.
+        gt_tokens: 1D integer tensor of ground-truth depth tokens.
+        image_tokenizer: A Cosmos ImageTokenizer instance with a loaded decoder.
+
+    Returns:
+        Scalar float representing the mean standardized L1 depth error (lower is better).
+    """
     pred_depth = token_ids_to_image(pred_tokens, image_tokenizer).mean(dim=0)
     gt_depth   = token_ids_to_image(gt_tokens,   image_tokenizer).mean(dim=0)
 
@@ -69,9 +91,22 @@ def compute_depth_l1(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, image_t
 
 
 def compute_mean_angle_error(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, image_tokenizer) -> float:
-    
-    """Evaluate normals"""
+    """Computes the mean angular error in degrees between predicted and ground-truth surface normals.
 
+    Both token sequences are decoded into images, rescaled to [-1, 1] to recover the XYZ normal
+    vectors stored in RGB channels, and L2-normalized per pixel. The per-pixel angle between
+    predicted and ground-truth normals is computed via the dot product and arccos, then averaged
+    over the image. This metric directly reflects how accurately the model recovers the 3D surface
+    orientation.
+
+    Args:
+        pred_tokens: 1D integer tensor of predicted normal tokens.
+        gt_tokens: 1D integer tensor of ground-truth normal tokens.
+        image_tokenizer: A Cosmos ImageTokenizer instance with a loaded decoder.
+
+    Returns:
+        Scalar float representing the mean angular error in degrees (lower is better).
+    """
     pred_normals = token_ids_to_image(pred_tokens, image_tokenizer) * 2 - 1
     gt_normals = token_ids_to_image(gt_tokens,   image_tokenizer)  * 2 - 1
 
@@ -85,18 +120,40 @@ def compute_mean_angle_error(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor,
 
 
 def compute_rgb_l1(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, image_tokenizer) -> float:
-    
-    """Evaluate rgb"""
-    
+    """Computes the mean L1 pixel error between a predicted and a ground-truth RGB image.
+
+    Both token sequences are decoded into [0, 1] images and compared pixel-wise. This provides
+    a straightforward measure of low-level visual fidelity for the text-to-image generation chain.
+
+    Args:
+        pred_tokens: 1D integer tensor of predicted RGB tokens.
+        gt_tokens: 1D integer tensor of ground-truth RGB tokens.
+        image_tokenizer: A Cosmos ImageTokenizer instance with a loaded decoder.
+
+    Returns:
+        Scalar float representing the mean L1 pixel error (lower is better).
+    """
     pred_img = token_ids_to_image(pred_tokens, image_tokenizer)
     gt_img   = token_ids_to_image(gt_tokens,   image_tokenizer)
     return (pred_img - gt_img).abs().mean().item()
 
 
 def compute_bleu_score(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, text_tokenizer) -> float:
-    
-    """Evaluate text"""
-    
+    """Computes the BLEU-4 score between a predicted and a ground-truth scene description.
+
+    Both token sequences are decoded using the GPT-2 tokenizer (with padding tokens filtered out),
+    lowercased, and split into word lists. BLEU-4 with smoothing (method1) is then computed to
+    handle the short sentences typical of CLEVR scene descriptions. A score of 0 is returned if
+    either the prediction or the reference is empty after decoding.
+
+    Args:
+        pred_tokens: 1D integer tensor of predicted text tokens.
+        gt_tokens: 1D integer tensor of ground-truth text tokens.
+        text_tokenizer: A HuggingFace GPT-2 tokenizer with added special tokens ([PAD], [SOS], [EOS]).
+
+    Returns:
+        Scalar float in [0, 1] representing the BLEU score (higher is better).
+    """
     pad_id = text_tokenizer.pad_token_id
     pred_ids = pred_tokens[pred_tokens != pad_id].tolist()
     gt_ids = gt_tokens[gt_tokens != pad_id].tolist()
@@ -112,13 +169,33 @@ def compute_bleu_score(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, text_
 
 @torch.no_grad()
 def evaluate_model(model, dataset, image_tokenizer, text_tokenizer, num_samples: int):
-   
+    """Evaluates a nano4M model on two multimodal generation chains and returns aggregated metrics.
+
+    The evaluation runs two sequential generation chains on each validation sample:
+
+    - Chain 1 (RGB → depth → normals → scene_desc): starting from a ground-truth RGB image,
+      the model auto-regressively generates depth, surface normals, and finally a text description.
+      Each modality is generated using ROAR (Random Order Auto-Regressive) decoding with a fixed
+      number of steps. Depth and normals use a near-greedy temperature (0.001) for deterministic
+      predictions, while scene description uses sampling (temp=0.7, top_p=0.9).
+
+    - Chain 2 (scene_desc → RGB): starting from the ground-truth text description, the model
+      generates the corresponding RGB image using 64 ROAR steps with sampling.
+
+    Metrics are averaged over the first `num_samples` samples of the dataset and returned as a
+    dictionary with keys: depth_l1, mean_angle_error, bleu_score, rgb_l1.
+
+    Args:
+        model: A trained FourM model with a `generate_one_modality_roar` method.
+        dataset: A SimpleMultimodalDataset instance (validation split).
+        image_tokenizer: A Cosmos ImageTokenizer instance for decoding visual tokens.
+        text_tokenizer: A HuggingFace GPT-2 tokenizer for decoding text tokens.
+        num_samples: Number of samples to evaluate (capped at dataset length).
+
+    Returns:
+        A dict with keys 'depth_l1', 'mean_angle_error', 'bleu_score', 'rgb_l1',
+        each rounded to 3 decimal places.
     """
-    Two evaluation chains:
-    Chain 1 : RGB -> depth -> normals -> scene_desc
-    Chain 2 : scene_desc -> RGB
-    """
-    
     model.eval()
     indices = list(range(min(num_samples, len(dataset))))
 
@@ -175,6 +252,14 @@ def evaluate_model(model, dataset, image_tokenizer, text_tokenizer, num_samples:
 
 
 def main():
+    """Entry point for the evaluation script.
+
+    Loads the Cosmos image tokenizer, the GPT-2 text tokenizer, and the validation dataset,
+    then evaluates both the original and the modified nano4M checkpoints sequentially. Each model
+    is deleted from GPU memory after evaluation to avoid OOM errors when loading the second one.
+    Results are printed as a formatted comparison table. Set CKPT_MODIFIED to None to evaluate
+    only the original model.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_samples', type=int, default=NUM_SAMPLES)
     args = parser.parse_args()

@@ -37,6 +37,11 @@ from nanofm.utils.native_scaler import get_grad_norm_
 
 
 def get_args():
+    """Parses training arguments from the command line and an optional YAML config file.
+
+    If a config file is provided via -c, it is loaded with OmegaConf (supporting interpolations)
+    and used as default values, which can still be overridden by explicit command-line arguments.
+    """
     config_parser = parser = argparse.ArgumentParser(description='Training Config', add_help=False)
     parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
                         help='YAML config file specifying default arguments')
@@ -138,6 +143,14 @@ def get_args():
 
 
 def main(args):
+    """Sets up the distributed training environment, model, and dual optimizer, then launches the training loop.
+
+    Parameters are split into two groups with different optimizers. Hidden weight matrices (ndim >= 2,
+    excluding embeddings and norms) are optimized with Muon, which applies Newton-Schulz orthogonalization
+    to each gradient update. All other parameters (embeddings, norms, biases, output head) use standard
+    AdamW. Both optimizers share the same cosine LR schedule, with Muon's LR scaled proportionally
+    (lr_muon = 0.02 * lr / peak_lr) to keep the two update magnitudes consistent throughout training.
+    """
     # Distributed init
     utils.init_distributed_mode(args)
     device = torch.device(args.device)
@@ -200,11 +213,12 @@ def main(args):
     print("Batch size per GPU = %d" % args.batch_size)
     print("Total (effective) batch size = %d" % args.total_batch_size)
 
-    # Optimizer
+    # Optimizer: Muon for hidden weight matrices, AdamW for everything else.
+    # Embeddings and norms are excluded from Muon as they are not 2D weight matrices in the
+    # traditional sense and do not benefit from orthogonalization.
     print("LR = %.8f" % args.lr)
     print("Min LR = %.8f" % args.min_lr)
-    # optimizer = create_adamw_optimizer(args, model_without_ddp) # Normal
-    muon_params, adamw_params = [], []  # Muon
+    muon_params, adamw_params = [], []
     for name, param in model_without_ddp.named_parameters():
         if not param.requires_grad:
             continue
@@ -215,7 +229,7 @@ def main(args):
 
     lr_muon = 0.025
     optimizer_muon = Muon(muon_params, lr=lr_muon, momentum=0.95, weight_decay=0.02)
-    optimizer_adamw = torch.optim.AdamW(adamw_params, lr=args.lr, betas=tuple(args.opt_betas), weight_decay=args.weight_decay, eps=args.opt_eps) # fin Muon
+    optimizer_adamw = torch.optim.AdamW(adamw_params, lr=args.lr, betas=tuple(args.opt_betas), weight_decay=args.weight_decay, eps=args.opt_eps)
     loss_scaler = NativeScaler(enabled=dtype == torch.float16)
 
     # LR scheduler
@@ -258,6 +272,7 @@ def main(args):
 
 
 def to_device(data_dict, device, non_blocking=True):
+    """Moves all tensor values in a dict to the target device, leaving non-tensors unchanged."""
     return {k: v.to(device, non_blocking=non_blocking) if torch.is_tensor(v) else v for k, v in data_dict.items()}
 
 
@@ -273,7 +288,15 @@ def train_loop(
         device: torch.device = torch.device('cuda'),
         dtype: torch.dtype = torch.float16,
         n_parameters: int = 0,
-    ):    
+    ):
+    """Runs the main training loop over the full token budget.
+
+    At each step, the LR schedule is applied to both optimizers: AdamW receives the cosine-scheduled
+    lr directly, while Muon's lr is scaled as 0.02 * (lr / peak_lr) to keep the ratio between the
+    two optimizers constant throughout training. Both optimizers are stepped separately after a shared
+    backward pass and gradient unscaling, with gradient clipping applied before either step.
+    Evaluation and checkpointing are triggered at the frequencies specified in args.
+    """
     model.train()
 
     metric_logger = utils.MetricLogger(delimiter='  ')
@@ -302,11 +325,10 @@ def train_loop(
             print(f"Saved debug info to {args.output_dir}/debug.pt", file=sys.stderr)
             sys.exit(1)
 
-        # Assign learning rate for each step
+        # Apply cosine LR schedule to both optimizers.
+        # Muon's LR is kept proportional to AdamW's to maintain a consistent ratio throughout training.
         lr = lr_schedule_values[it]
-        # for i, param_group in enumerate(optimizer.param_groups):    # Normal
-            # param_group["lr"] = lr  # Normal
-        for param_group in optimizer_adamw.param_groups:    # Muon
+        for param_group in optimizer_adamw.param_groups:
             param_group["lr"] = lr
         for param_group in optimizer_muon.param_groups:
             param_group["lr"] = 0.02 * (lr / args.lr)
@@ -323,20 +345,12 @@ def train_loop(
         loss_scaler._scaler.update()
         optimizer_muon.zero_grad()
         optimizer_adamw.zero_grad()
-        torch.cuda.synchronize() # Fin Muon
+        torch.cuda.synchronize()
         
         tokens_per_sec = args.total_batch_size * args.num_tokens_per_sample / (time.time() - _step_start)
         mfu = tokens_per_sec * 2 * n_parameters / (2 * 90e12)
         metric_logger.update(tokens_per_sec=tokens_per_sec)
         metric_logger.update(mfu=mfu)
-
-        # Loss scaling when training in fp16, backward pass, optimizer step, and synchronize
-        # grad_norm = loss_scaler(
-            # loss, optimizer, clip_grad=args.clip_grad, skip_grad=None,
-            # parameters=model.parameters(), compute_grad_norm=True,
-        # )
-        # optimizer.zero_grad()
-        # torch.cuda.synchronize()
 
         tokens_per_sec = args.total_batch_size * args.num_tokens_per_sample / (time.time() - _step_start)
         
@@ -402,6 +416,11 @@ def evaluate(
         dtype: torch.dtype = torch.float16, 
         prefix='[Eval]/',
     ):
+    """Runs one full pass over the validation set and returns averaged loss and metrics.
+
+    The model is temporarily set to eval mode and restored to its previous state afterward.
+    All metrics are synchronized across distributed processes before being returned.
+    """
     model_state = model.training # Save the model state
     model.eval()
 

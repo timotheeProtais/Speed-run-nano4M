@@ -92,6 +92,15 @@ def save_model(
         args, iteration, model, model_without_ddp, optimizer, loss_scaler, loss_balancer=None, 
         ckpt_name=None, all_nodes=False, save_as_safetensors=False, model_args=None, optimizer_muon=None,
     ):
+    """Saves a training checkpoint to disk, including both optimizers when Muon is used.
+
+    The checkpoint is a .pth file containing the model weights, iteration number, AdamW optimizer
+    state, and optionally the Muon optimizer state (under the key 'optimizer_muon'). Saving Muon's
+    state is necessary to resume training correctly, since its momentum buffers encode the
+    orthogonalized gradient history. A .safetensors file containing only the model weights is also
+    saved when save_as_safetensors is True, with the model config stored as metadata for
+    checkpoint-only inference (see load_model_from_safetensors).
+    """
     output_dir = Path(args.output_dir)
     iteration_name = str(iteration)
     ckpt_name = ckpt_name or iteration_name
@@ -107,8 +116,6 @@ def save_model(
             'scaler': loss_scaler.state_dict(),
         }
 
-        # if optimizer is not None:   #Normal
-            # to_save['optimizer'] = optimizer.state_dict()
         if optimizer is not None:
             to_save['optimizer'] = optimizer.state_dict()
         if optimizer_muon is not None:
@@ -126,6 +133,14 @@ def save_model(
 
 
 def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, optimizer_muon=None):
+    """Resumes training from the latest checkpoint if auto_resume is enabled.
+
+    When resuming, both the AdamW and Muon optimizer states are restored if present in the
+    checkpoint. Restoring Muon's momentum buffers is important for training stability: starting
+    from zeroed buffers mid-training would cause a spike in the orthogonalized updates until the
+    buffers warm up again. If no Muon state is found in the checkpoint (e.g. when resuming from
+    a baseline checkpoint), training continues with freshly initialized Muon buffers.
+    """
     output_dir = Path(args.output_dir)
     # torch.amp
     if args.auto_resume and len(args.resume) == 0:
@@ -150,14 +165,7 @@ def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, opti
         model_without_ddp.load_state_dict(checkpoint['model'])
         print("Resume checkpoint %s" % args.resume)
 
-        # if 'optimizer' in checkpoint and 'iteration' in checkpoint:     # Normal
-            # optimizer.load_state_dict(checkpoint['optimizer'])
-            # args.start_iteration = checkpoint['iteration'] + 1
-
-            # if 'scaler' in checkpoint:
-                # loss_scaler.load_state_dict(checkpoint['scaler'])
-            # print("With optim & sched!")
-        if 'optimizer' in checkpoint and 'iteration' in checkpoint:     # Muon
+        if 'optimizer' in checkpoint and 'iteration' in checkpoint:
             optimizer.load_state_dict(checkpoint['optimizer'])
             args.start_iteration = checkpoint['iteration'] + 1
             if 'optimizer_muon' in checkpoint and optimizer_muon is not None:
@@ -169,6 +177,7 @@ def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, opti
 
 
 def save_safetensors(state_dict, ckpt_path, metadata_dict=None):
+    """Saves a model state dict as a .safetensors file, with optional config metadata."""
     for k, v in state_dict.items():
         state_dict[k] = v.contiguous()
     if metadata_dict is not None:
@@ -179,6 +188,7 @@ def save_safetensors(state_dict, ckpt_path, metadata_dict=None):
 
 
 def parse_metadata(metadata_str):
+    """Parses safetensors metadata strings back into Python objects using ast.literal_eval."""
     metadata = {}
     for k, v in metadata_str.items():
         try:
@@ -190,6 +200,7 @@ def parse_metadata(metadata_str):
 
 
 def load_safetensors(safetensors_path, return_metadata=True):
+    """Loads a .safetensors file and optionally returns its metadata header as a parsed dict."""
     with open(safetensors_path, "rb") as f:
         data = f.read()
 
@@ -213,6 +224,12 @@ def load_model_from_safetensors(
     device: Optional[Union[str, torch.device]] = None,
     to_eval: bool = True,
 ) -> torch.nn.Module:
+    """Instantiates and loads a model directly from a .safetensors checkpoint.
+
+    The model architecture is reconstructed from the config stored as metadata in the checkpoint
+    (saved by save_model), so no separate config file is needed. Used in evaluate.py and
+    generate_images.py for inference-only loading.
+    """
     ckpt, config = load_safetensors(ckpt_path)
     model = instantiate(config)
     model.load_state_dict(ckpt)
