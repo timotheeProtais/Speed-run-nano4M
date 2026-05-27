@@ -1,7 +1,6 @@
 __pycache__/
 wandb/
 logs/
-outputs/
 *.run
 .ipynb_checkpoints/
 checkpoints/

@@ -90,7 +90,7 @@ def load_state_dict(model, state_dict, prefix='', ignore_missing=''):
 
 def save_model(
         args, iteration, model, model_without_ddp, optimizer, loss_scaler, loss_balancer=None, 
-        ckpt_name=None, all_nodes=False, save_as_safetensors=False, model_args=None
+        ckpt_name=None, all_nodes=False, save_as_safetensors=False, model_args=None, optimizer_muon=None,
     ):
     output_dir = Path(args.output_dir)
     iteration_name = str(iteration)
@@ -107,8 +107,12 @@ def save_model(
             'scaler': loss_scaler.state_dict(),
         }
 
+        # if optimizer is not None:   #Normal
+            # to_save['optimizer'] = optimizer.state_dict()
         if optimizer is not None:
             to_save['optimizer'] = optimizer.state_dict()
+        if optimizer_muon is not None:
+            to_save['optimizer_muon'] = optimizer_muon.state_dict()
 
         if loss_balancer is not None:
             to_save['loss_balancer'] = loss_balancer.state_dict()
@@ -121,7 +125,7 @@ def save_model(
             save_safetensors(to_save["model"], checkpoint_path_st, metadata_dict=model_args)
 
 
-def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler):
+def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, optimizer_muon=None):
     output_dir = Path(args.output_dir)
     # torch.amp
     if args.auto_resume and len(args.resume) == 0:
@@ -146,10 +150,19 @@ def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler):
         model_without_ddp.load_state_dict(checkpoint['model'])
         print("Resume checkpoint %s" % args.resume)
 
-        if 'optimizer' in checkpoint and 'iteration' in checkpoint:
+        # if 'optimizer' in checkpoint and 'iteration' in checkpoint:     # Normal
+            # optimizer.load_state_dict(checkpoint['optimizer'])
+            # args.start_iteration = checkpoint['iteration'] + 1
+
+            # if 'scaler' in checkpoint:
+                # loss_scaler.load_state_dict(checkpoint['scaler'])
+            # print("With optim & sched!")
+        if 'optimizer' in checkpoint and 'iteration' in checkpoint:     # Muon
             optimizer.load_state_dict(checkpoint['optimizer'])
             args.start_iteration = checkpoint['iteration'] + 1
-
+            if 'optimizer_muon' in checkpoint and optimizer_muon is not None:
+                optimizer_muon.load_state_dict(checkpoint['optimizer_muon'])
+                print("Muon optimizer state restored!")
             if 'scaler' in checkpoint:
                 loss_scaler.load_state_dict(checkpoint['scaler'])
             print("With optim & sched!")

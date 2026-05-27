@@ -23,6 +23,55 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 
+def rotate_half(x: torch.Tensor) -> torch.Tensor:
+   
+    x_even = x[..., 0::2]
+    x_odd = x[..., 1::2]
+
+    x_rotated = torch.empty_like(x)
+    x_rotated[..., 0::2] = -x_odd
+    x_rotated[..., 1::2] = x_even
+
+    return x_rotated
+
+
+def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+   
+    seq_len = x.shape[-2]
+
+    cos = cos[:seq_len].unsqueeze(0).unsqueeze(0)  # [1, 1, seq_len, head_dim]
+    sin = sin[:seq_len].unsqueeze(0).unsqueeze(0)  # [1, 1, seq_len, head_dim]
+
+    return x * cos + rotate_half(x) * sin
+
+
+def build_rope_cache(
+    seq_len: int,
+    head_dim: int,
+    device: torch.device,
+    dtype: torch.dtype,
+    theta: float = 10000.0,
+):
+    """
+    Returns cos and sin of shape [seq_len, head_dim].
+    """
+    assert head_dim % 2 == 0
+
+    inv_freq = 1.0 / (
+        theta ** (torch.arange(0, head_dim, 2, device=device, dtype=dtype) / head_dim)
+    )
+
+    positions = torch.arange(seq_len, device=device, dtype=dtype)
+    freqs = torch.einsum("i,j->ij", positions, inv_freq)  
+
+    
+    freqs = torch.repeat_interleave(freqs, repeats=2, dim=-1)
+
+    cos = freqs.cos()
+    sin = freqs.sin()
+
+    return cos, sin
+
 
 class LayerNorm(nn.Module):
     """Custom implementation of LayerNorm with the option to disable the bias term."""
@@ -63,11 +112,12 @@ class Mlp(nn.Module):
         hidden_features = hidden_features or in_features
         
         self.l1 = nn.Linear(in_features, hidden_features, bias=bias)
+        self.l1_gate = nn.Linear(in_features, hidden_features, bias=bias)
         self.l2 = nn.Linear(hidden_features, out_features, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
-        return self.l2(F.gelu(self.l1(x)))
+        return self.l2(F.gelu(self.l1(x)) * self.l1_gate(x))
 
 
 class Attention(nn.Module):
@@ -127,65 +177,102 @@ class Attention(nn.Module):
 
 class CrossAttention(nn.Module):
     """
-    Multi-head cross-attention module.
+    Multi-head cross-attention module with optional RoPE.
 
     Args:
         dim: Transformer dimension
         head_dim: Dimension of each attention head
         qkv_bias: Whether to include bias in the QKV linear layers
         proj_bias: Whether to include bias in the attention output projection
+        use_rope: Whether to apply rotary positional embeddings to Q and K
+        rope_theta: RoPE frequency base
     """
-    def __init__(self, dim: int, head_dim: int = 64, qkv_bias: bool = False, proj_bias: bool = False):
+
+    def __init__(
+        self,
+        dim: int,
+        head_dim: int = 64,
+        qkv_bias: bool = False,
+        proj_bias: bool = False,
+        use_rope: bool = True,
+        rope_theta: float = 10000.0,
+    ):
         super().__init__()
+
+        assert dim % head_dim == 0
+        assert head_dim % 2 == 0
+
         self.num_heads = dim // head_dim
-        self.scale = head_dim ** -0.5
         self.head_dim = head_dim
+        self.scale = head_dim ** -0.5
 
-        # TODO: Define here the linear layer producing Q from the input x
-        self.q = nn.Linear(dim, dim, bias=qkv_bias)
+        self.use_rope = use_rope
+        self.rope_theta = rope_theta
 
-        # TODO: Define here the linear layers producing K, V from the context
-        # Hint: Do you need to define two different projections, or can you use a single one for both?
-        self.kv = nn.Linear(dim, 2 * dim, bias=qkv_bias)
+        self.Qw = nn.Linear(dim, dim, bias=qkv_bias)
+
+        self.Kw = nn.Linear(dim, dim, bias=qkv_bias)
+        self.Vw = nn.Linear(dim, dim, bias=qkv_bias)
 
         self.attn_out_proj = nn.Linear(dim, dim, bias=proj_bias)
 
-    def forward(self, x: torch.Tensor, context: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        B, N, C = x.shape # Batch size, x sequence length (N), and dimension
-        _, M, _ = context.shape # _, context sequence length (M), _
+    def forward(
+        self,
+        x: torch.Tensor,
+        context: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        B, N, C = x.shape
+        _, M, _ = context.shape
 
-        # TODO: Compute the queries Q from x. It should be of shape [B num_heads N head_dim].
-        q = self.q(x)
-        q = q.reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        # Queries from x: [B, H, N, D]
+        Q = self.Qw(x)
+        Q = rearrange(Q, "b n (h d) -> b h n d", h=self.num_heads)
 
-        # TODO: Compute the keys K and values V from the context. Each should be of shape [B num_heads M head_dim].
-        kv = self.kv(context)
-        kv = kv.reshape(B, M, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
-        k, v = kv[0], kv[1]
+        # Keys and values from context: [B, H, M, D]
+        K = self.Kw(context)
+        V = self.Vw(context)
 
+        K = rearrange(K, "b m (h d) -> b h m d", h=self.num_heads)
+        V = rearrange(V, "b m (h d) -> b h m d", h=self.num_heads)
 
-        # TODO: Compute the attention matrix (pre softmax) and scale it by 1/sqrt(d_k). It should be of shape [B num_heads N M].
-        # Hint: Use the already defined self.scale
-        attn = (q @ k.transpose(-2, -1)) * self.scale
+        # Apply RoPE to Q and K only
+        if self.use_rope:
+            q_cos, q_sin = build_rope_cache(
+                seq_len=N,
+                head_dim=self.head_dim,
+                device=Q.device,
+                dtype=Q.dtype,
+                theta=self.rope_theta,
+            )
+
+            k_cos, k_sin = build_rope_cache(
+                seq_len=M,
+                head_dim=self.head_dim,
+                device=K.device,
+                dtype=K.dtype,
+                theta=self.rope_theta,
+            )
+
+            Q = apply_rope(Q, q_cos, q_sin)
+            K = apply_rope(K, k_cos, k_sin)
+
+        # Attention scores: [B, H, N, M]
+        attn = Q @ K.transpose(-2, -1) * self.scale
 
         if mask is not None:
-            mask = rearrange(mask, "b n m -> b 1 n m") # Unsqueeze for multi-head attention
-            # TODO: Apply the optional attention mask. Wherever the mask is False, replace the attention 
-            # matrix value by negative infinity → zero attention weight after softmax.
+            mask = rearrange(mask, "b n m -> b 1 n m")
             attn = attn.masked_fill(~mask, float("-inf"))
 
-        # TODO: Compute the softmax over the last dimension
-        attn = attn.softmax(dim=-1)
+        attn = F.softmax(attn, dim=-1)
 
-        # TODO: Weight the values V by the attention matrix and concatenate the different attention heads
-        # Make sure to reshape the output to the original shape of x, i.e. [B N D]
-        x = attn @ v 
-        x = x.transpose(1, 2).reshape(B, N, C)
-        # Output projection
+        # Weighted sum of values
+        x = attn @ V
+        x = rearrange(x, "b h n d -> b n (h d)")
+
         x = self.attn_out_proj(x)
 
         return x
-
 
 class Block(nn.Module):
     """
@@ -203,7 +290,7 @@ class Block(nn.Module):
         self.norm1 = LayerNorm(dim, bias=use_bias)
         self.attn = Attention(dim, head_dim, use_bias, use_bias)
         self.norm2 = LayerNorm(dim, bias=use_bias)
-        mlp_hidden_dim = int(dim * mlp_ratio)
+        mlp_hidden_dim = int(dim * mlp_ratio * 2 / 3)
         self.mlp = Mlp(dim, mlp_hidden_dim, dim, use_bias)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
@@ -234,12 +321,8 @@ class DecoderBlock(nn.Module):
         self.self_attn = Attention(dim, head_dim=head_dim, qkv_bias=use_bias, proj_bias=use_bias)
         self.cross_attn = CrossAttention(dim, head_dim=head_dim, qkv_bias=use_bias, proj_bias=use_bias)
 
-        mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = nn.Sequential(
-            nn.Linear(dim, mlp_hidden_dim, bias=use_bias),
-            nn.GELU(),
-            nn.Linear(mlp_hidden_dim, dim, bias=use_bias),
-        )
+        mlp_hidden_dim = int(dim * mlp_ratio * 2/3)
+        self.mlp = Mlp(dim, mlp_hidden_dim, dim, use_bias)
 
     def forward(self, 
             x: torch.Tensor, 

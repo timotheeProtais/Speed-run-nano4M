@@ -16,13 +16,13 @@ global_vars:
 
 # Training
 batch_size: ${global_vars.batch_size}
-total_tokens: 5000 # in millions of tokens
-warmup_tokens: 500 # in millions of tokens
+total_tokens: 2000 # in millions of tokens
+warmup_tokens: 50 # in millions of tokens
 num_tokens_per_sample: 256 # Number of tokens per sample to count towards the total tokens seen. 128 in + 128 out
-lr: 0.0006 # Max learning rate
-min_lr: 0.000001 # Min learning rate after cosine decay
+lr: 0.001 # Max learning rate
+min_lr: 0.00006 # Min learning rate after cosine decay
 weight_decay: 0.05 # AdamW weight decay
-clip_grad: 1.0 # Gradient clipping norm
+clip_grad: 2.0 # Gradient clipping norm
 dtype: bf16 # Precision. Choose fp16 on V100s and bf16 on L40, A100s or later. In case of instability, try fp32.
 
 # Eval
@@ -37,6 +37,7 @@ wandb_run_name: auto # Set to auto to use the run_name
 
 # Model config
 model_config:
+  mlp_ratio: 2.67  
   _target_: nanofm.models.fourm.FourM
   enc_tokens_read_key: enc_tokens
   dec_tokens_read_key: dec_tokens

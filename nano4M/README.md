@@ -67,13 +67,13 @@ Training is designed to run on 2× L40-48GB GPUs (distributed, global batch size
 | transformers | ≥ 4.40.0 | GPT-2 tokenizer |
 | numpy | ≥ 1.26.0 | |
 | Pillow | ≥ 10.0.0 | |
-| ||||
+| ||
 | cosmos-tokenizer | ≥ 0.1.0+ | For evaluate.py and generate_images.py |
-| pip install cosmos-tokenizer |||
+| pip install cosmos-tokenizer |
 | tokenizers | ≥ 0.19.0 | For evaluate.py and generate_images.py |
-| pip install tokenizers |||
+| pip install tokenizers |
 | nltk | ≥ 3.8.0 | For evaluate.py |
-| pip install nltk |||
+| pip install nltk |
 
 > **Note on FlexAttention**: David
 

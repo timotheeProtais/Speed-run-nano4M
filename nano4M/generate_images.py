@@ -16,8 +16,8 @@ from nanofm.utils.checkpoint import load_model_from_safetensors
 from nanofm.data.multimodal.simple_multimodal_dataset import SimpleMultimodalDataset
 
 CKPT         = './outputs/nano4M/multiclevr_d6-6w512/checkpoint-final.safetensors'
-COSMOS_ENC   = '/home/daolivei/cosmos_tokenizer/Cosmos-0.1-Tokenizer-DI16x16/encoder.jit'
-COSMOS_DEC   = '/home/daolivei/cosmos_tokenizer/Cosmos-0.1-Tokenizer-DI16x16/decoder.jit'
+COSMOS_ENC   = '/work/com-304/snoupy/nvidia/Cosmos-0.1-Tokenizer-DI16x16/encoder.jit'
+COSMOS_DEC   = '/work/com-304/snoupy/nvidia/Cosmos-0.1-Tokenizer-DI16x16/decoder.jit'
 DATASET_ROOT = '/work/com-304/datasets/clevr_com_304/'
 MODALITIES   = ['tok_rgb@256', 'tok_depth@256', 'tok_normal@256', 'scene_desc']
 OUTPUT_DIR   = './outputs/generated_images'

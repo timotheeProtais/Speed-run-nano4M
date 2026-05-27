@@ -25,23 +25,32 @@ class NativeScalerWithGradNormCount:
     def __init__(self, enabled=True):
         self._scaler = torch.amp.GradScaler('cuda', enabled=enabled)
 
-    def __call__(self, loss, optimizer, clip_grad=None, skip_grad=None, parameters=None, create_graph=False, update_grad=True, compute_grad_norm=True):
+    def __call__(self, loss, optimizer, clip_grad=None, skip_grad=None, parameters=None, create_graph=False, update_grad=True, compute_grad_norm=True, extra_optimizers=None):
         self._scaler.scale(loss).backward(create_graph=create_graph)
         if update_grad:
+            all_optimizers = [optimizer] + (extra_optimizers or []) # Muon
             if clip_grad is not None:
                 assert parameters is not None
-                self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
+                for opt in all_optimizers:  # Muon
+                    self._scaler.unscale_(opt)
+                # self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place (Normal )
                 norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
             elif skip_grad is not None:
-                self._scaler.unscale_(optimizer)
+                for opt in all_optimizers:      # Muon
+                    self._scaler.unscale_(opt)
+                # self._scaler.unscale_(optimizer)  #Normal
                 norm = get_grad_norm_(parameters)
                 if norm >= skip_grad:
                     self._scaler.update()
                     return norm
             else:
-                self._scaler.unscale_(optimizer)
+                for opt in all_optimizers:  # Muon
+                    self._scaler.unscale_(opt)
+                # self._scaler.unscale_(optimizer)
                 norm = get_grad_norm_(parameters) if compute_grad_norm else None
-            self._scaler.step(optimizer)
+            for opt in all_optimizers:      #Muon
+                self._scaler.step(opt)
+            # self._scaler.step(optimizer)
             self._scaler.update()
         else:
             norm = None

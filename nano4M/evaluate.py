@@ -27,10 +27,10 @@ from nanofm.data.multimodal.simple_multimodal_dataset import SimpleMultimodalDat
 # Number of val samples to evaluate on (None to use the full set)
 NUM_SAMPLES = 50
 NUM_STEPS = 8
-TEMP      = 0.001
-TOP_P     = 0.0
-TOP_K     = 0.0
-MODALITIES   = ['tok_rgb@256', 'tok_depth@256', 'tok_normal@256', 'scene_desc']
+TEMP = 0.001
+TOP_P = 0.0
+TOP_K = 0.0
+MODALITIES = ['tok_rgb@256', 'tok_depth@256', 'tok_normal@256', 'scene_desc']
 COSMOS_ENC = '/home/tprotais/cosmos_tokenizer/encoder.jit'
 COSMOS_DEC = '/home/tprotais/cosmos_tokenizer/decoder.jit'
 DATASET_ROOT = '/work/com-304/datasets/clevr_com_304/'
@@ -38,8 +38,8 @@ CKPT_ORIGINAL = './outputs/nano4M/multiclevr_d6-6w512/checkpoint-final.safetenso
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # TODO: Path of the checkpoint of the optimized model
-CKPT_MODIFIED = None
-#CKPT_MODIFIED = './outputs/nano4M/<MODIFIED_RUN>/checkpoint-final.safetensors'
+# CKPT_MODIFIED = None
+CKPT_MODIFIED = './outputs/nano4M/multiclevr_d6-6w512/checkpoint-7629.safetensors'
 
 
 def token_ids_to_image(token_ids: torch.Tensor, image_tokenizer) -> torch.Tensor:
@@ -63,7 +63,7 @@ def compute_depth_l1(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, image_t
     std = gt_depth.std()
     if std > 1e-6:
         pred_depth = (pred_depth - pred_depth.mean()) / std
-        gt_depth   = (gt_depth   - gt_depth.mean())   / std
+        gt_depth = (gt_depth   - gt_depth.mean())   / std
 
     return (pred_depth - gt_depth).abs().mean().item()
 
@@ -73,12 +73,12 @@ def compute_mean_angle_error(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor,
     """Evaluate normals"""
 
     pred_normals = token_ids_to_image(pred_tokens, image_tokenizer) * 2 - 1
-    gt_normals   = token_ids_to_image(gt_tokens,   image_tokenizer)  * 2 - 1
+    gt_normals = token_ids_to_image(gt_tokens,   image_tokenizer)  * 2 - 1
 
     pred_normals = F.normalize(pred_normals, dim=0)
-    gt_normals   = F.normalize(gt_normals,   dim=0)
+    gt_normals = F.normalize(gt_normals,   dim=0)
 
-    cos_sim     = (pred_normals * gt_normals).sum(dim=0).clamp(-1, 1)
+    cos_sim = (pred_normals * gt_normals).sum(dim=0).clamp(-1, 1)
     angle_error = torch.acos(cos_sim) * (180.0 / torch.pi)
 
     return angle_error.mean().item()
@@ -99,10 +99,10 @@ def compute_bleu_score(pred_tokens: torch.Tensor, gt_tokens: torch.Tensor, text_
     
     pad_id = text_tokenizer.pad_token_id
     pred_ids = pred_tokens[pred_tokens != pad_id].tolist()
-    gt_ids   = gt_tokens[gt_tokens != pad_id].tolist()
+    gt_ids = gt_tokens[gt_tokens != pad_id].tolist()
 
     pred_words = text_tokenizer.decode(pred_ids, skip_special_tokens=True).lower().split()
-    gt_words   = text_tokenizer.decode(gt_ids,   skip_special_tokens=True).lower().split()
+    gt_words = text_tokenizer.decode(gt_ids,   skip_special_tokens=True).lower().split()
 
     if len(pred_words) == 0 or len(gt_words) == 0:
         return 0.0
