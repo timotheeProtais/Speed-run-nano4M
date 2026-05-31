@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Communications Semester Project</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <header>
+    <h1>Speed run nano4M</h1>
+    <nav>
+      <a href="#introduction">Introduction</a>
+      <a href="#motivation">Motivation</a>
+      <a href="#background">Background</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#results">Results</a>
+      <a href="#challenges">Challenges</a>
+      <a href="#conclusion">Conclusion</a>
+      <a href="#references">References</a>  
+    </nav>
+  </header>
+
+  <main>
+    <article id="introduction" class="blog-post animate">
+      <h2>Introduction</h2>
+      <div class="tags">
+        <span class="tag">Tag 1</span>
+        <span class="tag">Tag 2</span>
+      </div>
+      <p>
+        Add a short overview of the project here.
+      </p>
+    </article>
+
+    <article id="motivation" class="blog-post animate">
+      <h2>Motivation</h2>
+      <div class="tags">
+        <span class="tag">Motivation</span>
+      </div>
+      <p>
+        Explain why this project matters and what problem it addresses.
+      </p>
+    </article>
+
+    <article id="background" class="blog-post animate">
+      <h2>Background</h2>
+      <div class="tags">
+        <span class="tag">Context</span>
+        <span class="tag">Related Work</span>
+      </div>
+      <p>
+        Summarize the relevant context, prior work, or baseline ideas.
+      </p>
+    </article>
+
+    <article id="methodology" class="blog-post animate">
+      <h2>Methodology</h2>
+      <div class="tags">
+        <span class="tag">Approach</span>
+        <span class="tag">Implementation</span>
+      </div>
+      <p>
+        Describe the method, pipeline, data, tools, or experimental setup.
+      </p>
+
+      <details>
+        <summary>Additional Details</summary>
+        <p>
+          Add optional technical details, preprocessing notes, or implementation notes here.
+        </p>
+      </details>
+    </article>
+
+    <article id="results" class="blog-post animate">
+      <h2>Results</h2>
+      <div class="tags">
+        <span class="tag">Evaluation</span>
+        <span class="tag">Findings</span>
+      </div>
+      <p>
+        Present the main results, observations, figures, or metrics here.
+      </p>
+    </article>
+
+    <article id="challenges" class="blog-post animate">
+      <h2>Challenges</h2>
+      <div class="tags">
+        <span class="tag">Limitations</span>
+        <span class="tag">Lessons Learned</span>
+      </div>
+      <p>
+        Discuss the main obstacles, trade-offs, limitations, and lessons learned.
+      </p>
+
+      <h3>Challenge 1</h3>
+      <p>
+        Describe the first challenge here.
+      </p>
+
+      <h3>Challenge 2</h3>
+      <p>
+        Describe the second challenge here.
+      </p>
+
+      <h3>Challenge 3</h3>
+      <p>
+        Describe the third challenge here.
+      </p>
+    </article>
+
+    <article id="conclusion" class="blog-post animate">
+      <h2>Conclusion</h2>
+      <p>
+        Summarize the project outcome and possible future directions.
+      </p>
+    </article>
+
+    <article id="references" class="blog-post animate">
+      <h2>References</h2>
+      <ol class="references-list">
+        <li>Add reference here.</li>
+      </ol>
+    </article>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 semester project</p>
+    <p>by Author Name(s)</p>
+    <div class="social-links">
+      <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+      <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+      <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+    </div>
+  </footer>
+
+  <script>
+    // Add smooth scrolling for navigation links
+    document.querySelectorAll('nav a').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href');
+        const targetElement = document.querySelector(targetId);
+        window.scrollTo({
+          top: targetElement.offsetTop - 80,
+          behavior: 'smooth'
+        });
+      });
+    });
+
+    // Function to toggle sections
+    function toggleSection(sectionId) {
+      const section = document.getElementById(sectionId);
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Add animation when elements come into view
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    // Observe all animate elements
+    document.querySelectorAll('.animate').forEach(element => {
+      observer.observe(element);
+    });
+  </script>
+</body>
+</html>
