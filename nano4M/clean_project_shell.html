@@ -57,21 +57,28 @@
     </article>
 
     <article id="methodology" class="blog-post animate">
-      <h2>Methodology</h2>
-      <div class="tags">
-        <span class="tag">Approach</span>
-        <span class="tag">Implementation</span>
-      </div>
-      <p>
-        Describe the method, pipeline, data, tools, or experimental setup.
-      </p>
+        <h2>Methodology</h2>
+        <div class="tags">
+            <span class="tag">Baseline</span>
+            <span class="tag">Evaluation</span>
+        </div>
 
-      <details>
-        <summary>Additional Details</summary>
-        <p>
-          Add optional technical details, preprocessing notes, or implementation notes here.
-        </p>
-      </details>
+        <h3>Baseline</h3>
+        <p>We trained nano4M for half the original schedule (~2h, 15,259 steps), stopping once we hit our target validation loss of 3.8.</p>
+
+        <table>
+            <tr><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr>
+            <tr><td>0.041</td><td>5.101</td><td>0.436</td><td>0.055</td></tr>
+        </table>
+
+        <h3>Evaluation Protocol</h3>
+        <p>Each extension is measured on four axes:</p>
+        <ol>
+            <li><strong>Wall-clock time</strong> — total training duration</li>
+            <li><strong>Steps to loss 3.8</strong> — potential training time = (s / 15,259) × t</li>
+            <li><strong>Throughput</strong> — tokens/sec and MFU</li>
+            <li><strong>Downstream quality</strong> — Depth, Normals, Text, RGB + visual inspection</li>
+        </ol>
     </article>
 
     <article id="results" class="blog-post animate">
