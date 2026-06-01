@@ -87,15 +87,127 @@
         <h3>Evaluation Protocol</h3>
         <p>Each extension is measured on four axes:</p>
         <ol>
-            <li><strong>Wall-clock time</strong> — total training duration</li>
-            <li><strong>Steps to loss 3.8</strong> — potential training time = (s / 15,259) × t</li>
-            <li><strong>Throughput</strong> — tokens/sec and MFU</li>
-            <li><strong>Downstream quality</strong> — Depth, Normals, Text, RGB + visual inspection</li>
+            <li><strong>Wall-clock time</strong> : total training duration</li>
+            <li><strong>Steps to loss 3.8</strong> : potential training time = (s / 15,259) × t</li>
+            <li><strong>Throughput</strong> : tokens/sec and MFU</li>
+            <li><strong>Downstream quality</strong> : Depth, Normals, Text, RGB + visual inspection</li>
         </ol>
     </article>
 
     <article id="results" class="blog-post animate">
       <h2>Results</h2>
+
+      <h3>SwiGLU</h3>
+        <div class="tags">
+          <span class="tag">Activation</span>
+          <span class="tag">MLP</span>
+        </div>
+        <p>
+          SwiGLU replaces the standard GELU activation with a gated variant:
+          <code>SwiGLU(x) = Swish(xW₁) ⊙ (xW₂)</code>. We added a second parallel
+          linear layer and replaced <code>F.gelu</code> with <code>F.silu</code>.
+        </p>
+        <p>Training time: 1h57 ; Tokens/sec: 309k ; MFU: 42.1% ; Loss 3.8 at step: 12,210 ; Theoretical time: ~1h33</p>
+        <table>
+          <thead><tr><th>Metric</th><th>Baseline</th><th>SwiGLU</th></tr></thead>
+          <tbody>
+            <tr><td>Depth ↓</td><td>0.041</td><td>0.040</td></tr>
+            <tr><td>Normals ↓</td><td>5.101</td><td>5.035</td></tr>
+            <tr><td>Text ↑</td><td>0.436</td><td>0.383</td></tr>
+            <tr><td>RGB ↓</td><td>0.055</td><td>0.053</td></tr>
+          </tbody>
+        </table>
+        <p>SwiGLU converges slightly faster than the baseline with a similar loss curve.</p>
+
+        <h3>GeGLU</h3>
+        <div class="tags">
+          <span class="tag">Activation</span>
+          <span class="tag">MLP</span>
+        </div>
+        <p>
+          GeGLU follows the same gated structure as SwiGLU but uses GELU instead of Swish:
+          <code>GeGLU(x) = GELU(xW₁) ⊙ (xW₂)</code>. Implementation is identical to SwiGLU,
+          replacing <code>F.silu</code> with <code>F.gelu</code>.
+        </p>
+        <p>Training time: 1h56 ; Tokens/sec: 309k ; MFU: 42.1% ; Loss 3.8 at step: 13,730 ; Theoretical time: ~1h45</p>
+        <table>
+          <thead><tr><th>Metric</th><th>Baseline</th><th>GeGLU</th></tr></thead>
+          <tbody>
+            <tr><td>Depth ↓</td><td>0.041</td><td>0.041</td></tr>
+            <tr><td>Normals ↓</td><td>5.101</td><td>4.879</td></tr>
+            <tr><td>Text ↑</td><td>0.436</td><td>0.396</td></tr>
+            <tr><td>RGB ↓</td><td>0.055</td><td>0.054</td></tr>
+          </tbody>
+        </table>
+        <p>GeGLU follows a loss curve close to SwiGLU, with a slight improvement on Normals.</p>
+
+        <h3>Muon</h3>
+        <div class="tags">
+          <span class="tag">Optimizer</span>
+          <span class="tag">Convergence</span>
+        </div>
+        <p>
+          Muon replaces AdamW for hidden weight matrices. It applies Nesterov momentum
+          then orthogonalizes the update via a Newton-Schulz iteration, producing
+          near-orthogonal updates that better condition the loss landscape. Embeddings,
+          norms and biases keep AdamW.
+        </p>
+        <p>Training time: 1h56 ; Tokens/sec: 313k ; MFU: 38.3% ; Loss 3.8 at step: 9,160 ; Theoretical time: ~1h10</p>
+        <table>
+          <thead><tr><th>Metric</th><th>Baseline</th><th>Muon</th></tr></thead>
+          <tbody>
+            <tr><td>Depth ↓</td><td>0.041</td><td>0.032</td></tr>
+            <tr><td>Normals ↓</td><td>5.101</td><td>3.984</td></tr>
+            <tr><td>Text ↑</td><td>0.436</td><td>0.437</td></tr>
+            <tr><td>RGB ↓</td><td>0.055</td><td>0.053</td></tr>
+          </tbody>
+        </table>
+        <p>Muon converges significantly faster: reaching loss 3.8 roughly 6,000 steps earlier than the baseline.</p>
+
+        <h3>Schedule-Free AdamW</h3>
+        <div class="tags">
+          <span class="tag">Optimizer</span>
+          <span class="tag">Scheduler</span>
+        </div>
+        <p>
+          Schedule-Free AdamW removes the learning rate schedule by maintaining a weighted
+          average of iterates internally, alternating between an exploration point and an
+          averaging point. A fixed learning rate of 0.0006 with 100 warmup steps is still required.
+        </p>
+        <p>Training time: 2h24 ; Tokens/sec: 346k ; MFU: 42.3% ; Loss 3.8: <strong>not reached</strong></p>
+        <table>
+          <thead><tr><th>Metric</th><th>Baseline</th><th>Sched.-Free AdamW</th></tr></thead>
+          <tbody>
+            <tr><td>Depth ↓</td><td>0.041</td><td>0.079</td></tr>
+            <tr><td>Normals ↓</td><td>5.101</td><td>8.784</td></tr>
+            <tr><td>Text ↑</td><td>0.436</td><td>0.331</td></tr>
+            <tr><td>RGB ↓</td><td>0.055</td><td>0.052</td></tr>
+          </tbody>
+        </table>
+        <p>Schedule-Free AdamW converges slower than the baseline and fails to reach the target loss within 15,259 steps.</p>
+
+        <h3>Grouped-Query Attention (GQA)</h3>
+        <div class="tags">
+          <span class="tag">Attention</span>
+          <span class="tag">Memory</span>
+        </div>
+        <p>
+          GQA reduces the number of key and value heads while keeping query heads fixed.
+          Multiple query heads share a single KV head, lowering memory bandwidth and
+          increasing throughput. We expand KV heads back via repetition before the
+          attention computation.
+        </p>
+        <p>Training time: 1h47 ; Tokens/sec: 346k ; MFU: 41.4% ; Loss 3.8 at step: ~15,259</p>
+        <table>
+          <thead><tr><th>Metric</th><th>Baseline</th><th>GQA</th></tr></thead>
+          <tbody>
+            <tr><td>Depth ↓</td><td>0.041</td><td>0.142</td></tr>
+            <tr><td>Normals ↓</td><td>5.101</td><td>11.179</td></tr>
+            <tr><td>Text ↑</td><td>0.436</td><td>0.150</td></tr>
+            <tr><td>RGB ↓</td><td>0.055</td><td>0.050</td></tr>
+          </tbody>
+        </table>
+        <p>GQA reduces training time but significantly degrades downstream metrics, may be due to a misconfiguration. Loss 3.8 is only reached at the very end of training.</p>
     
       <h3>FlexAttention</h3>
       <div class="tags">
@@ -106,7 +218,7 @@
         FlexAttention is a PyTorch API that allows custom attention score modifications via a user-defined <code>score_mod</code> function, compiled into an optimized CUDA kernel. We applied it on maskless attention paths and fell back to standard attention when masks are present.
       </p>
       <p>
-        Training time: 2h29 — Tokens/sec: 424k — MFU: 51.8% — Loss @ 15k steps: 4.32
+        Training time: 2h29 ; Tokens/sec: 424k ; MFU: 51.8% ; Loss @ 15k steps: 4.32
       </p>
       <table>
         <thead><tr><th>Metric</th><th>Baseline</th><th>FlexAttention</th></tr></thead>
@@ -121,7 +233,7 @@
         FlexAttention improves GPU throughput by +25% tokens/sec and +10% MFU vs baseline. However it does not accelerate loss convergence alone — loss 3.8 is only reached near the end of training.
       </p>
     
-      <h3>Combining extensions — best model: Muon + FlexAttention</h3>
+      <h3>Combining extensions - best model: Muon + FlexAttention</h3>
       <div class="tags">
         <span class="tag">Muon</span>
         <span class="tag">FlexAttention</span>
@@ -142,7 +254,7 @@
         </tbody>
       </table>
       <p>
-        Muon + FlexAttention achieves the best downstream metrics of all combinations — Depth 0.034 and Normals 4.031 outperform every other run. This is our best model.
+        Muon + FlexAttention achieves the best downstream metrics of all combinations. Depth 0.034 and Normals 4.031 outperform every other run. This is our best model.
       </p>
     
     </article>
