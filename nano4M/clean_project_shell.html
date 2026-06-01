@@ -31,10 +31,9 @@
     <nav>
       <a href="#introduction">Introduction</a>
       <a href="#motivation">Motivation</a>
-      <a href="#background">Background</a>
+      <a href="#background">Related Work</a>
       <a href="#methodology">Methodology</a>
       <a href="#results">Results</a>
-      <a href="#challenges">Challenges</a>
       <a href="#conclusion">Conclusion</a>
       <a href="#references">References</a>  
     </nav>
@@ -43,10 +42,6 @@
   <main>
     <article id="introduction" class="blog-post animate">
       <h2>Introduction</h2>
-      <div class="tags">
-        <span class="tag">Tag 1</span>
-        <span class="tag">Tag 2</span>
-      </div>
       <p>
         With AI models becoming larger and larger every year, and requiring more and more parameters for sophisticated and versatile data treatment and generation, the growing training runtime has become a legitimate concern. Even with an abundance of high quality data, high-performing computing nodes and a plenitude of memory, a model requiring an unreasonable amount of training time will be heavily penalized. This is why, in the present paper we focused on studying and analyzing and testing in practice a multitude of runtime optimization methods. We examined possible optimizer enhancers such as Sophia, Lion and Muon; improvements in vector representation such as RoPE and FlexAttention; alternative activation functions such as SwiGLU and GeGLU and so on. The main goal was to stack all the best performing and mutually compatible pieces together to get the best overall training time improvement. The model on which the described above was tested was the Nano4M, a multi-model capable of generating more than 10 image modalities such as RGB representation, depth heat map, surface normal heat map, CLIP, textual descriptions and many others. During our research, we have paid attention not only to the loss curves of the model in general, but to three core modalities (RGB, depth, text) as well.
       </p>
@@ -295,26 +290,6 @@
         Muon + FlexAttention achieves the best downstream metrics of all combinations. Depth 0.034 and Normals 4.031 outperform every other run. This is our best model.
       </p>
     
-    </article>
-
-    <article id="challenges" class="blog-post animate">
-      <h2>Challenges</h2>
-      <div class="tags">
-        <span class="tag">Limitations</span>
-        <span class="tag">Lessons Learned</span>
-      </div>
-      <p>
-        Discuss the main obstacles, trade-offs, limitations, and lessons learned.
-      </p>
-
-      <h3>Challenge 1</h3>
-      <p>Describe the first challenge here.</p>
-
-      <h3>Challenge 2</h3>
-      <p>Describe the second challenge here.</p>
-
-      <h3>Challenge 3</h3>
-      <p>Describe the third challenge here.</p>
     </article>
 
     <article id="conclusion" class="blog-post animate">
