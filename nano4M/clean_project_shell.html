@@ -134,10 +134,7 @@
           <img src="assets/swiglu.png" alt="SwiGLU vs baseline loss curve">
           <figcaption>SwiGLU vs baseline training loss</figcaption>
         </figure>
-        <figure>
-          <img src="assets/images/swiglu_.png" alt="SwiGLU RGB">
-          <figcaption>SwiGLU RGB</figcaption>
-        </figure>
+
         <table>
           <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
@@ -145,6 +142,10 @@
             <tr><td>SwiGLU</td><td>0.040</td><td>5.035</td><td>0.383</td><td>0.053</td></tr>
           </tbody>
         </table>
+                <figure>
+          <img src="assets/images/swiglu_.png" alt="SwiGLU RGB">
+          <figcaption>SwiGLU RGB</figcaption>
+        </figure>
         <p>SwiGLU converges slightly faster than the baseline with a similar loss curve.</p>
 
         <h3>GeGLU</h3>
@@ -162,10 +163,7 @@
           <img src="assets/geglu.png" alt="GeGLU vs baseline loss curve">
           <figcaption>GeGLU vs baseline training loss</figcaption>
         </figure>
-        <figure>
-          <img src="assets/images/grglu_.png" alt="GeGLU RGB">
-          <figcaption>GeGLU RGB</figcaption>
-        </figure>
+
         <table>
           <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
@@ -173,6 +171,10 @@
             <tr><td>GeGLU</td><td>0.041</td><td>4.879</td><td>0.396</td><td>0.054</td></tr>
           </tbody>
         </table>
+                <figure>
+          <img src="assets/images/grglu_.png" alt="GeGLU RGB">
+          <figcaption>GeGLU RGB</figcaption>
+        </figure>
         <p>GeGLU follows a loss curve close to SwiGLU, with a slight improvement on Normals.</p>
 
         <h3>Muon</h3>
@@ -191,10 +193,6 @@
           <img src="assets/muon.png" alt="Muon vs baseline loss curve">
           <figcaption>Muon vs baseline training loss</figcaption>
         </figure>
-        <figure>
-          <img src="assets/images/muon_.png" alt="muon RGB">
-          <figcaption>Muon RGB</figcaption>
-        </figure>
         <table>
           <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
@@ -202,6 +200,10 @@
             <tr><td>Muon</td><td>0.032</td><td>3.984</td><td>0.437</td><td>0.053</td></tr>
           </tbody>
         </table>
+                <figure>
+          <img src="assets/images/muon_.png" alt="muon RGB">
+          <figcaption>Muon RGB</figcaption>
+        </figure>
         <p>Muon converges significantly faster: reaching loss 3.8 roughly 6,000 steps earlier than the baseline.</p>
 
         <h3>Schedule-Free AdamW</h3>
@@ -219,10 +221,6 @@
           <img src="assets/schedule.png" alt="Schedule-Free AdamW vs baseline loss curve">
           <figcaption>Schedule-Free AdamW vs baseline training loss</figcaption>
         </figure>
-        <figure>
-          <img src="assets/images/schedul_.png" alt="Schedule RGB">
-          <figcaption>Schedule free AdamW RGB</figcaption>
-        </figure>
         <table>
           <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
@@ -230,6 +228,10 @@
             <tr><td>Sched.-Free AdamW</td><td>0.079</td><td>8.784</td><td>0.331</td><td>0.052</td></tr>
           </tbody>
         </table>
+                <figure>
+          <img src="assets/images/schedul_.png" alt="Schedule RGB">
+          <figcaption>Schedule free AdamW RGB</figcaption>
+        </figure>
         <p>Schedule-Free AdamW converges slower than the baseline and fails to reach the target loss within 15,259 steps.</p>
 
         <h3>Grouped-Query Attention (GQA)</h3>
@@ -248,10 +250,6 @@
           <img src="assets/gqa.png" alt="GQA vs baseline loss curve">
           <figcaption>Grouped-Query Attention vs baseline training loss</figcaption>
         </figure>
-        <figure>
-          <img src="assets/images/gqa_.png" alt="GQA RGB">
-          <figcaption>GQA RGB</figcaption>
-        </figure>
         <table>
           <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
@@ -259,6 +257,10 @@
             <tr><td>GQA</td><td>0.142</td><td>11.179</td><td>0.150</td><td>0.050</td></tr>
           </tbody>
         </table>
+        <figure>
+          <img src="assets/images/gqa_.png" alt="GQA RGB">
+          <figcaption>GQA RGB</figcaption>
+        </figure>
         <p>GQA reduces training time but significantly degrades downstream metrics, may be due to a misconfiguration. Loss 3.8 is only reached at the very end of training.</p>
     
       <h3>FlexAttention</h3>
