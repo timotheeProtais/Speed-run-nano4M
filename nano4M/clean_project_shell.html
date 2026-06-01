@@ -104,13 +104,55 @@
 
     <article id="results" class="blog-post animate">
       <h2>Results</h2>
+    
+      <h3>FlexAttention</h3>
       <div class="tags">
-        <span class="tag">Evaluation</span>
-        <span class="tag">Findings</span>
+        <span class="tag">Attention</span>
+        <span class="tag">GPU efficiency</span>
       </div>
       <p>
-        Present the main results, observations, figures, or metrics here.
+        FlexAttention is a PyTorch API that allows custom attention score modifications via a user-defined <code>score_mod</code> function, compiled into an optimized CUDA kernel. We applied it on maskless attention paths and fell back to standard attention when masks are present.
       </p>
+      <p>
+        Training time: 2h29 — Tokens/sec: 424k — MFU: 51.8% — Loss @ 15k steps: 4.32
+      </p>
+      <table>
+        <thead><tr><th>Metric</th><th>Baseline</th><th>FlexAttention</th></tr></thead>
+        <tbody>
+          <tr><td>Depth ↓</td><td>0.041</td><td>0.040</td></tr>
+          <tr><td>Normals ↓</td><td>5.101</td><td>5.047</td></tr>
+          <tr><td>Text ↑</td><td>0.436</td><td>0.442</td></tr>
+          <tr><td>RGB ↓</td><td>0.055</td><td>0.051</td></tr>
+        </tbody>
+      </table>
+      <p>
+        FlexAttention improves GPU throughput by +25% tokens/sec and +10% MFU vs baseline. However it does not accelerate loss convergence alone — loss 3.8 is only reached near the end of training.
+      </p>
+    
+      <h3>Combining extensions — best model: Muon + FlexAttention</h3>
+      <div class="tags">
+        <span class="tag">Muon</span>
+        <span class="tag">FlexAttention</span>
+        <span class="tag">Combinations</span>
+      </div>
+      <p>
+        Combined with Muon, FlexAttention becomes much more effective. Muon drives faster convergence while FlexAttention keeps GPU utilization high. Together they reach loss 3.8 around step 7,200 — a theoretical training time of ~55 minutes.
+      </p>
+      <table>
+        <thead><tr><th>Model</th><th>Time</th><th>Loss@15k</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>Theor. time</th></tr></thead>
+        <tbody>
+          <tr><td>Baseline</td><td>4h44</td><td>3.91</td><td>0.033</td><td>4.065</td><td>0.448</td><td>—</td></tr>
+          <tr><td>FlexAttention</td><td>2h29</td><td>4.32</td><td>0.040</td><td>5.047</td><td>0.442</td><td>~2h26</td></tr>
+          <tr><td>Muon + SwiGLU</td><td>2h00</td><td>3.96</td><td>0.036</td><td>4.209</td><td>0.420</td><td>~1h06</td></tr>
+          <tr><td>Muon + GeGLU</td><td>1h57</td><td>3.93</td><td>0.035</td><td>4.174</td><td>0.443</td><td>~58 min</td></tr>
+          <tr><td>Muon + Flex + GeGLU</td><td>1h54</td><td>3.93</td><td>0.035</td><td>4.141</td><td>0.421</td><td>~1h34</td></tr>
+          <tr><td><strong>Muon + FlexAttention ✓</strong></td><td>1h58</td><td>3.92</td><td>0.034</td><td>4.031</td><td>0.437</td><td>~55 min</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Muon + FlexAttention achieves the best downstream metrics of all combinations — Depth 0.034 and Normals 4.031 outperform every other run. This is our best model.
+      </p>
+    
     </article>
 
     <article id="challenges" class="blog-post animate">
