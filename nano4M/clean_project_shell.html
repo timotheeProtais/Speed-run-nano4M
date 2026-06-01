@@ -7,6 +7,23 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
   <link rel="stylesheet" href="style.css">
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <style>
+    figure {
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+    figure img {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    }
+    figcaption {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -31,14 +48,14 @@
         <span class="tag">Tag 2</span>
       </div>
       <p>
-        Add a short overview of the project here.
+        With AI models becoming larger and larger every year, and requiring more and more parameters for sophisticated and versatile data treatment and generation, the growing training runtime has become a legitimate concern. Even with an abundance of high quality data, high-performing computing nodes and a plenitude of memory, a model requiring an unreasonable amount of training time will be heavily penalized. This is why, in the present paper we focused on studying and analyzing and testing in practice a multitude of runtime optimization methods. We examined possible optimizer enhancers such as Sophia, Lion and Muon; improvements in vector representation such as RoPE and FlexAttention; alternative activation functions such as SwiGLU and GeGLU and so on. The main goal was to stack all the best performing and mutually compatible pieces together to get the best overall training time improvement. The model on which the described above was tested was the Nano4M, a multi-model capable of generating more than 10 image modalities such as RGB representation, depth heat map, surface normal heat map, CLIP, textual descriptions and many others. During our research, we have paid attention not only to the loss curves of the model in general, but to three core modalities (RGB, depth, text) as well.
       </p>
     </article>
 
     <article id="motivation" class="blog-post animate">
       <h2>Motivation</h2>
       <p>
-          Training large multimodal models is expensive — both in time and compute.
+          Training large multimodal models is expensive both in time and compute.
           As models grow larger and datasets richer, the cost of a single training run
           can reach thousands of GPU-hours. This makes iteration slow: testing a new
           idea means waiting hours or days for results, which severely limits
@@ -47,7 +64,7 @@
       <p>
           Inspired by the <strong>nanoGPT speedrun challenge</strong>, we ask: how fast
           can we reach a target validation loss on nano4M? Rather than chasing the
-          best final performance, we optimize for <em>training efficiency</em> —
+          best final performance, we optimize for <em>training efficiency</em>
           minimizing wall-clock time and the number of tokens required to hit our
           target. This is a fundamentally different objective: it rewards architectures
           and optimizers that converge faster, not just ones that converge better.
@@ -55,22 +72,28 @@
       <p>
           The practical impact is real. A 2× speedup means twice as many experiments
           in the same budget. It means researchers with limited compute can iterate
-          at the same pace as well-funded labs. And the techniques that win —
-          better attention mechanisms, smarter optimizers, efficient data pipelines —
+          at the same pace as well-funded labs. And the techniques that win
+          (better attention mechanisms, smarter optimizers, efficient data pipelines)
           transfer directly to larger-scale training runs. Speed is not just a
           convenience: it is a research multiplier.
       </p>
     </article>
 
     <article id="background" class="blog-post animate">
-      <h2>Background</h2>
-      <div class="tags">
-        <span class="tag">Context</span>
-        <span class="tag">Related Work</span>
-      </div>
+      <h2>Related Work</h2>
       <p>
-        Summarize the relevant context, prior work, or baseline ideas.
+        Various approaches have been proposed to accelerate neural network training. While individual techniques such as alternative optimizers, attention mechanisms and activation functions are well-documented in the literature, their combination under a single architecture remains underexplored. Our main contribution is precisely this stacking strategy, applied to the unique multi-modal nano4M model.
       </p>
+      <ul>
+        <li><strong>Muon</strong> <em>(Jordan, 2024)</em> — introduced the Muon optimizer with promising convergence speedups, which we successfully reproduced.</li>
+        <li><strong>Sophia</strong> <em>(Liu et al., 2023)</em> — a scalable second-order optimizer for LLM pre-training, which we implemented in practice.</li>
+        <li><strong>RoPE</strong> <em>(Azhar, 2023)</em> — a descriptive overview of Rotary Positional Embeddings.</li>
+        <li><strong>Lion</strong> <em>(Wang et al., 2023)</em> — a lightweight optimizer explored as an alternative to AdamW.</li>
+        <li><strong>FlexAttention</strong> <em>(PyTorch, 2024)</em> — a flexible and performant attention API that we integrated into our best model.</li>
+        <li><strong>Schedule-Free AdamW</strong> <em>(Defazio et al., 2024)</em> — an approach removing the need for a learning rate schedule.</li>
+        <li><strong>GQA</strong> <em>(Raschka, 2024)</em> — Grouped-Query Attention for reduced memory bandwidth.</li>
+        <li><strong>SwiGLU</strong> <em>(Selssabil, 2024)</em> and <strong>GeGLU</strong> <em>(Olamendy, 2023)</em> — gated activation functions powering modern LLMs.</li>
+      </ul>
     </article>
 
     <article id="methodology" class="blog-post animate">
@@ -78,6 +101,11 @@
 
         <h3>Baseline</h3>
         <p>We trained nano4M for half the original schedule (~2h, 15,259 steps), stopping once we hit our target validation loss of 3.8 (group choice).</p>
+
+        <figure>
+          <img src="assets/basique.png" alt="Baseline training loss curve">
+          <figcaption>Baseline training loss — 15,259 steps</figcaption>
+        </figure>
 
         <table>
             <tr><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr>
@@ -108,13 +136,15 @@
           linear layer and replaced <code>F.gelu</code> with <code>F.silu</code>.
         </p>
         <p>Training time: 1h57 ; Tokens/sec: 309k ; MFU: 42.1% ; Loss 3.8 at step: 12,210 ; Theoretical time: ~1h33</p>
+        <figure>
+          <img src="assets/swiglu.png" alt="SwiGLU vs baseline loss curve">
+          <figcaption>SwiGLU vs baseline training loss</figcaption>
+        </figure>
         <table>
-          <thead><tr><th>Metric</th><th>Baseline</th><th>SwiGLU</th></tr></thead>
+          <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
-            <tr><td>Depth ↓</td><td>0.041</td><td>0.040</td></tr>
-            <tr><td>Normals ↓</td><td>5.101</td><td>5.035</td></tr>
-            <tr><td>Text ↑</td><td>0.436</td><td>0.383</td></tr>
-            <tr><td>RGB ↓</td><td>0.055</td><td>0.053</td></tr>
+            <tr><td>Baseline</td><td>0.041</td><td>5.101</td><td>0.436</td><td>0.055</td></tr>
+            <tr><td>SwiGLU</td><td>0.040</td><td>5.035</td><td>0.383</td><td>0.053</td></tr>
           </tbody>
         </table>
         <p>SwiGLU converges slightly faster than the baseline with a similar loss curve.</p>
@@ -130,13 +160,15 @@
           replacing <code>F.silu</code> with <code>F.gelu</code>.
         </p>
         <p>Training time: 1h56 ; Tokens/sec: 309k ; MFU: 42.1% ; Loss 3.8 at step: 13,730 ; Theoretical time: ~1h45</p>
+        <figure>
+          <img src="assets/geglu.png" alt="GeGLU vs baseline loss curve">
+          <figcaption>GeGLU vs baseline training loss</figcaption>
+        </figure>
         <table>
-          <thead><tr><th>Metric</th><th>Baseline</th><th>GeGLU</th></tr></thead>
+          <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
-            <tr><td>Depth ↓</td><td>0.041</td><td>0.041</td></tr>
-            <tr><td>Normals ↓</td><td>5.101</td><td>4.879</td></tr>
-            <tr><td>Text ↑</td><td>0.436</td><td>0.396</td></tr>
-            <tr><td>RGB ↓</td><td>0.055</td><td>0.054</td></tr>
+            <tr><td>Baseline</td><td>0.041</td><td>5.101</td><td>0.436</td><td>0.055</td></tr>
+            <tr><td>GeGLU</td><td>0.041</td><td>4.879</td><td>0.396</td><td>0.054</td></tr>
           </tbody>
         </table>
         <p>GeGLU follows a loss curve close to SwiGLU, with a slight improvement on Normals.</p>
@@ -153,13 +185,15 @@
           norms and biases keep AdamW.
         </p>
         <p>Training time: 1h56 ; Tokens/sec: 313k ; MFU: 38.3% ; Loss 3.8 at step: 9,160 ; Theoretical time: ~1h10</p>
+        <figure>
+          <img src="assets/muon.png" alt="Muon vs baseline loss curve">
+          <figcaption>Muon vs baseline training loss</figcaption>
+        </figure>
         <table>
-          <thead><tr><th>Metric</th><th>Baseline</th><th>Muon</th></tr></thead>
+          <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
-            <tr><td>Depth ↓</td><td>0.041</td><td>0.032</td></tr>
-            <tr><td>Normals ↓</td><td>5.101</td><td>3.984</td></tr>
-            <tr><td>Text ↑</td><td>0.436</td><td>0.437</td></tr>
-            <tr><td>RGB ↓</td><td>0.055</td><td>0.053</td></tr>
+            <tr><td>Baseline</td><td>0.041</td><td>5.101</td><td>0.436</td><td>0.055</td></tr>
+            <tr><td>Muon</td><td>0.032</td><td>3.984</td><td>0.437</td><td>0.053</td></tr>
           </tbody>
         </table>
         <p>Muon converges significantly faster: reaching loss 3.8 roughly 6,000 steps earlier than the baseline.</p>
@@ -175,13 +209,15 @@
           averaging point. A fixed learning rate of 0.0006 with 100 warmup steps is still required.
         </p>
         <p>Training time: 2h24 ; Tokens/sec: 346k ; MFU: 42.3% ; Loss 3.8: <strong>not reached</strong></p>
+        <figure>
+          <img src="assets/schedule.png" alt="Schedule-Free AdamW vs baseline loss curve">
+          <figcaption>Schedule-Free AdamW vs baseline training loss</figcaption>
+        </figure>
         <table>
-          <thead><tr><th>Metric</th><th>Baseline</th><th>Sched.-Free AdamW</th></tr></thead>
+          <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
-            <tr><td>Depth ↓</td><td>0.041</td><td>0.079</td></tr>
-            <tr><td>Normals ↓</td><td>5.101</td><td>8.784</td></tr>
-            <tr><td>Text ↑</td><td>0.436</td><td>0.331</td></tr>
-            <tr><td>RGB ↓</td><td>0.055</td><td>0.052</td></tr>
+            <tr><td>Baseline</td><td>0.041</td><td>5.101</td><td>0.436</td><td>0.055</td></tr>
+            <tr><td>Sched.-Free AdamW</td><td>0.079</td><td>8.784</td><td>0.331</td><td>0.052</td></tr>
           </tbody>
         </table>
         <p>Schedule-Free AdamW converges slower than the baseline and fails to reach the target loss within 15,259 steps.</p>
@@ -198,13 +234,15 @@
           attention computation.
         </p>
         <p>Training time: 1h47 ; Tokens/sec: 346k ; MFU: 41.4% ; Loss 3.8 at step: ~15,259</p>
+        <figure>
+          <img src="assets/gqa.png" alt="GQA vs baseline loss curve">
+          <figcaption>Grouped-Query Attention vs baseline training loss</figcaption>
+        </figure>
         <table>
-          <thead><tr><th>Metric</th><th>Baseline</th><th>GQA</th></tr></thead>
+          <thead><tr><th>Modèle</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>RGB ↓</th></tr></thead>
           <tbody>
-            <tr><td>Depth ↓</td><td>0.041</td><td>0.142</td></tr>
-            <tr><td>Normals ↓</td><td>5.101</td><td>11.179</td></tr>
-            <tr><td>Text ↑</td><td>0.436</td><td>0.150</td></tr>
-            <tr><td>RGB ↓</td><td>0.055</td><td>0.050</td></tr>
+            <tr><td>Baseline</td><td>0.041</td><td>5.101</td><td>0.436</td><td>0.055</td></tr>
+            <tr><td>GQA</td><td>0.142</td><td>11.179</td><td>0.150</td><td>0.050</td></tr>
           </tbody>
         </table>
         <p>GQA reduces training time but significantly degrades downstream metrics, may be due to a misconfiguration. Loss 3.8 is only reached at the very end of training.</p>
@@ -270,25 +308,21 @@
       </p>
 
       <h3>Challenge 1</h3>
-      <p>
-        Describe the first challenge here.
-      </p>
+      <p>Describe the first challenge here.</p>
 
       <h3>Challenge 2</h3>
-      <p>
-        Describe the second challenge here.
-      </p>
+      <p>Describe the second challenge here.</p>
 
       <h3>Challenge 3</h3>
-      <p>
-        Describe the third challenge here.
-      </p>
+      <p>Describe the third challenge here.</p>
     </article>
 
     <article id="conclusion" class="blog-post animate">
       <h2>Conclusion</h2>
       <p>
-        Summarize the project outcome and possible future directions.
+        In conclusion, our project had the main task of finding and testing possible enhancements and changes in the architecture that would allow for a shorter training time. 
+        Our main result was a substantial decrease in training time from initially 2 hours to 57 minutes to reach the same training loss of 3.8. This remarkable two-fold decrease was achieved by combining Muon with FlexAttention. 
+        One of the possible improvements could have been to tune more finely the hyperparameters of each extension. As the training was still taking a fairly long time and we had many extensions to test, it wasn't always practical to experiment a lot with its hyperparameters. As for future extensions, we think that it would be interesting to work on other models, perhaps LLMs, as they may behave differently that the nano4M that we have used in this project.        
       </p>
     </article>
 
@@ -311,7 +345,6 @@
   </footer>
 
   <script>
-    // Add smooth scrolling for navigation links
     document.querySelectorAll('nav a').forEach(anchor => {
       anchor.addEventListener('click', function(e) {
         e.preventDefault();
@@ -324,13 +357,11 @@
       });
     });
 
-    // Function to toggle sections
     function toggleSection(sectionId) {
       const section = document.getElementById(sectionId);
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Add animation when elements come into view
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -339,7 +370,6 @@
       });
     }, { threshold: 0.1 });
 
-    // Observe all animate elements
     document.querySelectorAll('.animate').forEach(element => {
       observer.observe(element);
     });
