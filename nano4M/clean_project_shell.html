@@ -261,12 +261,35 @@
           <figcaption>GQA RGB</figcaption>
         </figure>
         <p>GQA reduces training time but significantly degrades downstream metrics, may be due to a misconfiguration. Loss 3.8 is only reached at the very end of training.</p>
-    
+      
+      <h3>Lion</h3>
+      <p>
+        Lightweight optimizer relying on the sign of the momentum update instead of full adaptive updates. Too unstable for this setup, loss stagnated around 4.1 and never reached the target.
+      </p>
+      <figure>
+          <img src="assets/Lion.png" alt="Lion loss">
+          <figcaption>Lion (blue) vs baseline loss</figcaption>
+      </figure>
+
+      <h3>RoPE</h3>
+      <p>
+        Injects positional information by rotating query/key vectors in the attention mechanism. Provides a modest convergence gain, reaching loss 3.8 at step 12,308 (~1h30 theoretical training time).
+      </p>
+      <figure>
+          <img src="assets/RoPE.png" alt="rope loss">
+          <figcaption>RoPE (Green) vs baseline loss</figcaption>
+      </figure>
+      
+      <h3>Sophia</h3>
+      <p>
+        Second-order optimizer using a diagonal Hessian approximation for more informed updates. Too sensitive to hyperparameters, never reached the target loss of 3.8 in either tested configuration.
+      </p>
+      <figure>
+          <img src="assets/Sophia.png" alt=" sophia loss">
+          <figcaption>Sophia V1(grey) and V2(Purple) vs baseline loss</figcaption>
+      </figure>
+      
       <h3>FlexAttention</h3>
-      <div class="tags">
-        <span class="tag">Attention</span>
-        <span class="tag">GPU efficiency</span>
-      </div>
       <p>
         FlexAttention is a PyTorch API that allows custom attention score modifications via a user-defined <code>score_mod</code> function, compiled into an optimized CUDA kernel. We applied it on maskless attention paths and fell back to standard attention when masks are present.
       </p>
