@@ -296,6 +296,10 @@
       <p>
         Training time: 2h29 ; Tokens/sec: 424k ; MFU: 51.8% ; Loss @ 15k steps: 4.32
       </p>
+      <figure>
+          <img src="assets/FlexAttention.png" alt=" flexAttention loss">
+          <figcaption>FlexAttention vs baseline loss</figcaption>
+      </figure>
       <table>
         <thead><tr><th>Metric</th><th>Baseline</th><th>FlexAttention</th></tr></thead>
         <tbody>
@@ -318,6 +322,10 @@
       <p>
         Combined with Muon, FlexAttention becomes much more effective. Muon drives faster convergence while FlexAttention keeps GPU utilization high. Together they reach loss 3.8 around step 7,200 — a theoretical training time of ~55 minutes.
       </p>
+      <figure>
+          <img src="assets/MuonFlex.png" alt=" Muon + flexAttention loss">
+          <figcaption>FlexAttention + Muon vs baseline loss</figcaption>
+      </figure>
       <table>
         <thead><tr><th>Model</th><th>Time</th><th>Loss@15k</th><th>Depth ↓</th><th>Normals ↓</th><th>Text ↑</th><th>Theor. time</th></tr></thead>
         <tbody>
