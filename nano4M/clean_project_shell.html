@@ -36,13 +36,34 @@
     </article>
 
     <article id="motivation" class="blog-post animate">
-      <h2>Motivation</h2>
-      <div class="tags">
-        <span class="tag">Motivation</span>
-      </div>
-      <p>
-        Explain why this project matters and what problem it addresses.
-      </p>
+    <h2>Motivation</h2>
+    <div class="tags">
+        <span class="tag">Efficiency</span>
+        <span class="tag">Speedrun</span>
+    </div>
+    <p>
+        Training large multimodal models is expensive — both in time and compute.
+        As models grow larger and datasets richer, the cost of a single training run
+        can reach thousands of GPU-hours. This makes iteration slow: testing a new
+        idea means waiting hours or days for results, which severely limits
+        experimentation speed.
+    </p>
+    <p>
+        Inspired by the <strong>nanoGPT speedrun challenge</strong>, we ask: how fast
+        can we reach a target validation loss on nano4M? Rather than chasing the
+        best final performance, we optimize for <em>training efficiency</em> —
+        minimizing wall-clock time and the number of tokens required to hit our
+        target. This is a fundamentally different objective: it rewards architectures
+        and optimizers that converge faster, not just ones that converge better.
+    </p>
+    <p>
+        The practical impact is real. A 2× speedup means twice as many experiments
+        in the same budget. It means researchers with limited compute can iterate
+        at the same pace as well-funded labs. And the techniques that win —
+        better attention mechanisms, smarter optimizers, efficient data pipelines —
+        transfer directly to larger-scale training runs. Speed is not just a
+        convenience: it is a research multiplier.
+    </p>
     </article>
 
     <article id="background" class="blog-post animate">
@@ -179,3 +200,4 @@
   </script>
 </body>
 </html>
+
