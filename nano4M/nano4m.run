@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --chdir /home/tprotais/COM-304-FM/com-304-FM-project-2026/nano4M
+#SBATCH --gres=gpu:2
+#SBATCH --nodes 1
+#SBATCH --ntasks 1
+#SBATCH --cpus-per-task 6
+#SBATCH --mem 32000
+#SBATCH --time 12:30:00
+#SBATCH --output /home/tprotais/COM-304-FM/com-304-FM-project-2026/nano4M/logs/%j.out 
+#SBATCH --account=com-304
+#SBATCH --qos=com-304
+#SBATCH --partition=l40s
+
+echo STARTING AT `date`
+OMP_NUM_THREADS=1 torchrun --nproc_per_node=2 run_training.py --config cfgs/nano4M/multiclevr_d6-6w512.yaml --batch_size 256
+echo FINISHED at `date`

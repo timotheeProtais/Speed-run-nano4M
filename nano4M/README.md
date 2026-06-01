@@ -12,11 +12,6 @@ nano4M/
 ├── cfgs/                                       # Hydra configuration files
 │   ├── nano4M/                                 # Configs for the nano4M model
 │
-├── data/                                       # Local datasets (CIFAR-10, MNIST)
-│   ├── cifar-10-batches-py/
-│   ├── cifar-10-python.tar.gz
-│   └── MNIST/
-│
 ├── nanofm/                                     # Core library
 │   ├── data/                                   # Data loading and preprocessing
 │   │   └── multimodal.py                       # Multimodal masked dataloader
@@ -33,18 +28,13 @@ nano4M/
 │   ├── generated_images/                       # Images generated after training
 │   └── nano4M/                                 # Model checkpoints
 │
-├── logs/                                       # SLURM job output logs
-│
 ├── run_training.py                             # Main training entry point
 ├── evaluate.py                                 # Evaluation script
 ├── generate_images.py                          # Image generation
-│
 ├── nano4m.run                                  # SLURM job script for nano4M training
-│
 ├── submit_job.sh                               # Helper script to submit SLURM jobs
 ├── setup_env.sh                                # Environment setup script
 ├── pyproject.toml                              # Python project metadata and dependencies
-├── wandb/                                      # Weights & Biases run artifacts
 ├── Intelligent_Systems_Speed_Sun_report.pdf    # Our report
 └── clean_project_shell.html                    # Our site (https://timotheeprotais.github.io/Speed-run-nano4M/nano4M/clean_project_shell.html)
 ```
@@ -76,7 +66,7 @@ Training is designed to run on 2× L40-48GB GPUs (distributed, global batch size
 | nltk | ≥ 3.8.0 | For evaluate.py |
 | pip install nltk |
 
-> **Note on FlexAttention**: David
+> **Note on FlexAttention**: FlexAttention is implemented in `nanofm/modeling/transformer_layers.py`
 
 > **Note on Muon**: The Muon optimizer is implemented locally in `nanofm/utils/muon.py` : no extra pip install needed.
 
